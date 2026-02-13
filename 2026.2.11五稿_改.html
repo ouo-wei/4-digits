@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>四位數比較大小互動教材</title>
+  <style>
+    * { box-sizing: border-box; }
+    @font-face {
+  font-family: "BpmfZihiKaiStd-Regular";
+  src: local("BpmfZihiKaiStd-Regular");
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  font-family: "BpmfZihiKaiStd-Regular", "Noto Sans TC", sans-serif;
+}
+    #app { display: flex; width: 100%; height: 100%; position: relative; }
+
+    .numbers { width: 66.66%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 60px; border-right: 2px solid #ccc; }
+    .num-row { display: flex; gap: 18px; font-size: 96px; }
+    .digit { width: 90px; text-align: center; border-bottom: 5px solid #000; }
+    .hidden { background: repeating-linear-gradient(45deg,#999,#999 6px,#ccc 6px,#ccc 12px); color: transparent; }
+
+    .right { width: 33.33%; display: flex; flex-direction: column; }
+    .progress { height: 12.5%; border-bottom: 2px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 22px; background: #e6f4ff; }
+
+    .question { height: 50%; padding: 20px; font-size: 28px; display: flex; align-items: center; justify-content: flex-start; text-align: left; border-bottom: 2px solid #ccc; }
+    .controls { height: 50%; display: flex; }
+
+ .btn { 
+  flex: 1; 
+  font-size: 40px; 
+  border: none; 
+  cursor: pointer; 
+  background: #97CBFF; 
+  font-family: "BpmfZihiKaiStd-Regular", "Noto Sans TC", sans-serif;
+}
+    .btn + .btn { border-left: 2px solid #ccc; }
+
+    .modal { position: absolute; inset: 0; background: rgba(0,0,0,0.3); display: none; align-items: center; justify-content: center; z-index: 10; }
+    .modal-content { background: #97CBFF; padding: 40px 60px; font-size: 30px; border-radius: 12px; max-width: 80%; text-align: center; line-height: 1.5; }
+    .modal-hint {
+  margin-top: 20px;
+  font-size: 18px;
+  color: #0066CC;
+  text-align: center;   /* ← 這一行就是關鍵 */
+}
+
+
+.modal-content.left-align {
+  text-align: left;
+}
+
+.modal-center {
+  text-align: center;
+}
+
+.modal-left {
+  text-align: left;
+}
+
+
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="numbers">
+    <div id="numA" class="num-row"></div>
+    <div id="numB" class="num-row"></div>
+  </div>
+
+  <div class="right">
+    <div id="progress" class="progress"></div>
+    <div id="question" class="question"></div>
+    <div id="controls" class="controls"></div>
+  </div>
+
+  <div id="modal" class="modal">
+    <div id="modalText" class="modal-content"></div>
+  </div>
+</div>
+
+<script>
+// ===== 音效設定 =====
+const sounds = {
+  click: new Audio('click.mp3'),
+  intro: new Audio('intro.mp3'),
+  startQ: new Audio('startQ.mp3'),
+  correct: new Audio('correct.mp3'),
+  wrong: new Audio('wrong.mp3'),
+successAll: new Audio('successAll.mp3')
+};
+Object.values(sounds).forEach(a => a.preload = 'auto');
+function playSound(key){ if(sounds[key]){ sounds[key].currentTime=0; sounds[key].play(); } }
+
+const numA = document.getElementById('numA');
+const numB = document.getElementById('numB');
+const questionEl = document.getElementById('question');
+const controls = document.getElementById('controls');
+const progressEl = document.getElementById('progress');
+const modal = document.getElementById('modal');
+const modalText = document.getElementById('modalText');
+
+let current = 0;
+let awaitingClick = false;
+let lastAnswerCorrect = false;
+
+function renderNumber(num, mask) {
+  return num.split('').map((d, i) => {
+    const cls = mask[i] ? 'digit hidden' : 'digit';
+    return `<div class="${cls}">${d}</div>`;
+  }).join('');
+}
+
+function showIntro() {
+  playSound('startQ');
+  modal.style.display = 'flex';
+  modalText.innerHTML = `第 ${current + 1} / 6 題`;
+  setTimeout(() => {
+    modal.style.display = 'none';
+    showQuestion(questions[current]);
+  }, 2000);
+}
+
+function showQuestion(q) {
+  progressEl.textContent = `第 ${current + 1} / ${questions.length} 題`;
+  numA.innerHTML = renderNumber(q.a, q.maskA);
+  numB.innerHTML = renderNumber(q.b, q.maskB);
+  questionEl.textContent = q.text;
+  controls.innerHTML = '';
+
+  const opts = q.type === 'judge' ? ['v','x'] : ['千位','百位','十位','個位'];
+  opts.forEach(s => {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.textContent = s;
+    b.onclick = () => { playSound('click'); check(s === q.answer); };
+    controls.appendChild(b);
+  });
+}
+
+function feedbackText(ok) {
+  const q = questions[current];
+
+  if (current === 0) {
+    return ok
+      ? '答對了！從「千位」的數字中，可以發現7比6大，7個󠇡千 > 6個󠇡千，所以可以看出誰比較大！'
+      : '再想想看吧！<br>小提示:7與6都在「千位」，是7個󠇡千與6個󠇡千。';
+  }
+  if (current === 1) {
+    return ok
+      ? '答對了！兩組數字的千位都是6，無法分辨誰比較大。'
+      : '再想想看吧！<br>小提示:兩個󠇡6都代表「6個󠇡千」喔！';
+  }
+  if (current === 2) {
+    const h1 = q.a[1];
+    const h2 = q.b[1];
+    return ok
+      ? `答對了！從百位可以看出${h1}比${h2}大，${h1}個󠇡百 > ${h2}個󠇡百。`
+      : `再想想看吧！<br>小提示:百位的數字是${h1}與${h2}。`;
+  }
+  if (current === 3) {
+    return ok
+      ? '答對了！比較數字大小時，要從最高位數開始比。'
+      : '再想想看吧！<br>小提示:想想看哪一󠇡個󠇡位數最先不一󠇡樣。';
+  }
+  if (current === 4) {
+    const type = q.baseType;
+    if (type === 0) {
+      return ok
+        ? `答對了！從「千位」的數字中，可以發現${q.b[0]}比${q.a[0]}大，${q.b[0]}個󠇡千 > ${q.a[0]}個󠇡千，所以可以看出誰比較大！`
+        : `再想想看吧！<br>小提示:${q.a[0]}與${q.b[0]}都在「千位」，是${q.a[0]}個󠇡千與${q.b[0]}個󠇡千。`;
+    }
+    if (type === 1) {
+      return ok
+        ? `答對了！兩組數字的千位都是${q.a[0]}，目前無法分辨誰比較大。`
+        : `再想想看吧！<br>小提示:兩個󠇡「${q.a[0]}」都代表${q.a[0]}個󠇡千喔！`;
+    }
+    if (type === 2) {
+      const h1 = q.a[1];
+      const h2 = q.b[1];
+      return ok
+        ? `答對了！從百位可以看出${h1}比${h2}大，${h1}個󠇡百 > ${h2}個󠇡百。`
+        : `再想想看吧！<br>小提示:百位的數字是${h1}與${h2}。`;
+    }
+  }
+  if (current === 5) {
+    if (ok) {
+      if (q.answer === '個位') {
+        return '答對了！從個位的數字中，可以看出兩組數字誰比較大。';
+      }
+      return `答對了！從「${q.answer}」開始，就可以看出兩組數字誰比較大。`;
+    }
+    return '再想想看吧！<br>小提示:要從最高位數開始，一󠇡位一󠇡位比較。';
+  }
+}
+
+function showFeedback(ok) {
+  playSound(ok ? 'correct' : 'wrong');
+
+  const text = feedbackText(ok);
+
+  // 先清掉對齊狀態
+  modalText.classList.remove('left-align');
+
+  // 判斷是否需要置左
+  const isRetry = text.includes('再想想看吧！');
+
+  const singleLineWhitelist = [
+    '答對了！從個位的數字中，可以看出兩組數字誰比較大。',
+    '恭喜你！你已經完成所有題目了！'
+  ];
+
+  const isSingleLine = singleLineWhitelist.some(s => text.includes(s));
+
+  if (!isRetry && !isSingleLine) {
+    modalText.classList.add('left-align');
+  }
+
+  modal.style.display = 'flex';
+let html = '';
+
+if (text.startsWith('答對了！')) {
+  const parts = text.split('！');
+  const title = parts[0] + '！';
+  const body = parts.slice(1).join('！').trim();
+
+  html = `
+    <div class="modal-center">${title}</div>
+    ${body ? `<div class="modal-left">${body}</div>` : ''}
+  `;
+} else {
+  // 其他情況（例如：再想想看吧！）維持原本
+  html = `<div class="modal-center">${text}</div>`;
+}
+
+modalText.innerHTML = `
+  ${html}
+  <div class="modal-hint">－點擊任意處以繼續－</div>
+`;
+
+  awaitingClick = true;
+}
+
+
+modal.addEventListener('click', () => {
+  if (!awaitingClick) return;
+  awaitingClick = false;
+  modal.style.display = 'none';
+  if (!lastAnswerCorrect) return;
+  current++;
+  if (current < questions.length) {
+    showIntro();
+  } else {
+playSound('successAll'); 
+    modal.style.display = 'flex';
+    modalText.innerHTML = '恭喜你！你已經完成所有題目了！';
+  }
+});
+
+function check(ok) {
+  lastAnswerCorrect = ok;
+  showFeedback(ok);
+}
+
+function randDigit(nonZero = false) {
+  return nonZero ? String(Math.floor(Math.random()*9)+1) : String(Math.floor(Math.random()*10));
+}
+function rand4() {
+  return randDigit(true)+randDigit()+randDigit()+randDigit();
+}
+
+function genQ5() {
+  const typeIdx = Math.floor(Math.random()*3);
+  if(typeIdx===0){
+    const a=rand4(); let b; do{b=rand4()}while(a[0]===b[0]);
+    return {type:'judge', baseType:0, text:'現在的兩組數字中，可不可以知道誰比較大？', a,b, maskA:[0,1,1,1], maskB:[0,1,1,1], answer:a[0]!==b[0]?'v':'x'};
+  }
+  if(typeIdx===1){
+    const k=randDigit(true);
+    const a=k+randDigit()+randDigit()+randDigit();
+    const b=k+randDigit()+randDigit()+randDigit();
+    return {type:'judge', baseType:1, text:'現在可以看得出兩組數字誰比較大嗎？', a,b, maskA:[0,1,1,1], maskB:[0,1,1,1], answer:'x'};
+  }
+  const k=randDigit(true); let h1=randDigit(), h2; do{h2=randDigit()}while(h1===h2);
+  const a=k+h1+randDigit()+randDigit();
+  const b=k+h2+randDigit()+randDigit();
+  return {type:'judge', baseType:2, text:'這兩組數字現在可以看得出誰比較大嗎？', a,b, maskA:[0,0,1,1], maskB:[0,0,1,1], answer:'v'};
+}
+
+function genQ6(){
+  const options=['千位','百位','十位','個位'];
+  const idx=Math.floor(Math.random()*4);
+  let a=['','','',''],b=['','','',''];
+  for(let i=0;i<idx;i++){const d=randDigit(i===0);a[i]=b[i]=d;}
+  let da,db; do{da=randDigit(idx===0);db=randDigit(idx===0);}while(da===db);
+  a[idx]=da;b[idx]=db;
+  for(let i=idx+1;i<4;i++){a[i]=randDigit();b[i]=randDigit();}
+  return {type:'pos', text:'從哪一󠇡位數開始，可以知道兩組數字誰比較大？', a:a.join(''), b:b.join(''), maskA:[0,0,0,0], maskB:[0,0,0,0], answer:options[idx]};
+}
+
+const questions=[
+  {type:'judge', text:'現在的兩組數字中，可不可以知道誰比較大？', a:'6xxx', b:'7xxx', maskA:[0,1,1,1], maskB:[0,1,1,1], answer:'v'},
+  {type:'judge', text:'現在可以看得出兩組數字誰比較大嗎？', a:'6xxx', b:'6xxx', maskA:[0,1,1,1], maskB:[0,1,1,1], answer:'x'},
+  {type:'judge', text:'這兩組數字現在可以看得出誰比較大嗎？', a:'68xx', b:'62xx', maskA:[0,0,1,1], maskB:[0,0,1,1], answer:'v'},
+  {type:'pos', text:'從哪一󠇡位數開始，可以知道兩組數字誰比較大？', a:'6265', b:'7143', maskA:[0,0,0,0], maskB:[0,0,0,0], answer:'千位'},
+  genQ5(),
+  genQ6()
+];
+
+// 起始說明
+modal.style.display='flex';
+modalText.classList.add('left-align');
+modalText.innerHTML='在接下來的小活動中，會有6個󠇡小題目，每題都會出現兩組數字。<br><br>在畫面的右邊會有題目與選項，請在閱讀題目後，點擊選項的按鈕來選擇答案！<div class="modal-hint">－點擊任意處以開始－</div>';
+modal.addEventListener('click', function startOnce(){
+  playSound('intro');
+  modal.removeEventListener('click', startOnce);
+  modal.style.display='none';
+  showIntro();
+});
+</script>
+</body>
+</html>

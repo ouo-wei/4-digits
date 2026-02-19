@@ -20,9 +20,31 @@ body {
     #app { display: flex; width: 100%; height: 100%; position: relative; }
 
     .numbers { width: 66.66%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 60px; border-right: 2px solid #ccc; }
-    .num-row { display: flex; gap: 18px; font-size: 96px; }
-    .digit { width: 90px; text-align: center; border-bottom: 5px solid #000; }
-    .hidden { background: repeating-linear-gradient(45deg,#999,#999 6px,#ccc 6px,#ccc 12px); color: transparent; }
+    .num-row {
+  display: flex;
+  gap: 18px;
+  font-size: clamp(64px, 8vw, 96px);
+  flex-wrap: nowrap;
+}
+
+.digit {
+  width: clamp(60px, 7vw, 90px);
+  text-align: center;
+  border-bottom: 5px solid #000;
+}
+
+.digit.hidden {
+  background: repeating-linear-gradient(
+    45deg,
+    #999,
+    #999 6px,
+    #ccc 6px,
+    #ccc 12px
+  );
+  color: transparent;  /* ⭐ 隱藏文字，遮擋完全覆蓋 */
+}
+
+
 
     .right { width: 33.33%; display: flex; flex-direction: column; }
     .progress { height: 12.5%; border-bottom: 2px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 22px; background: #e6f4ff; }
@@ -118,7 +140,8 @@ function renderNumber(num, mask) {
 function showIntro() {
   playSound('startQ');
   modal.style.display = 'flex';
-  modalText.innerHTML = `第 ${current + 1} / 6 題`;
+  modalText.innerHTML = `第 ${current + 1} 題 / 共 ${questions.length} 題`;
+
   setTimeout(() => {
     modal.style.display = 'none';
     showQuestion(questions[current]);
@@ -126,18 +149,31 @@ function showIntro() {
 }
 
 function showQuestion(q) {
-  progressEl.textContent = `第 ${current + 1} / ${questions.length} 題`;
+  progressEl.textContent = `第 ${current + 1} 題 / 共 ${questions.length} 題`;
+
   numA.innerHTML = renderNumber(q.a, q.maskA);
   numB.innerHTML = renderNumber(q.b, q.maskB);
-  questionEl.textContent = q.text;
+  questionEl.innerHTML = autoLineBreak(q.text);
+
   controls.innerHTML = '';
 
-  const opts = q.type === 'judge' ? ['v','x'] : ['千位','百位','十位','個位'];
+  const opts = q.type === 'judge' ? ['o','x'] : ['千位','百位','十位','個位'];
   opts.forEach(s => {
     const b = document.createElement('button');
     b.className = 'btn';
     b.textContent = s;
-    b.onclick = () => { playSound('click'); check(s === q.answer); };
+    b.onclick = () => {
+  playSound('click');
+
+  let userAnswer = s;
+
+  if (q.type === 'judge') {
+    userAnswer = (s === 'o') ? 'v' : 'x';
+  }
+
+  check(userAnswer === q.answer);
+};
+
     controls.appendChild(b);
   });
 }
@@ -148,36 +184,36 @@ function feedbackText(ok) {
   if (current === 0) {
     return ok
       ? '答對了！從「千位」的數字中，可以發現7比6大，7個󠇡千 > 6個󠇡千，所以可以看出誰比較大！'
-      : '再想想看吧！<br>小提示:7與6都在「千位」，是7個󠇡千與6個󠇡千。';
+      : '再想想看吧！<br>小提示：7與6都在「千位」，是7個󠇡千與6個󠇡千。';
   }
   if (current === 1) {
     return ok
       ? '答對了！兩組數字的千位都是6，無法分辨誰比較大。'
-      : '再想想看吧！<br>小提示:兩個󠇡6都代表「6個󠇡千」喔！';
+      : '再想想看吧！<br>小提示：兩個󠇡6都代表「6個󠇡千」喔！';
   }
   if (current === 2) {
     const h1 = q.a[1];
     const h2 = q.b[1];
     return ok
       ? `答對了！從百位可以看出${h1}比${h2}大，${h1}個󠇡百 > ${h2}個󠇡百。`
-      : `再想想看吧！<br>小提示:百位的數字是${h1}與${h2}。`;
+      : `再想想看吧！<br>小提示：百位的數字是${h1}與${h2}。`;
   }
   if (current === 3) {
     return ok
       ? '答對了！比較數字大小時，要從最高位數開始比。'
-      : '再想想看吧！<br>小提示:想想看哪一󠇡個󠇡位數最先不一󠇡樣。';
+      : '再想想看吧！<br>小提示：想想看哪一󠇡個󠇡位數最先不一󠇡樣。';
   }
   if (current === 4) {
     const type = q.baseType;
     if (type === 0) {
       return ok
         ? `答對了！從「千位」的數字中，可以發現${q.b[0]}比${q.a[0]}大，${q.b[0]}個󠇡千 > ${q.a[0]}個󠇡千，所以可以看出誰比較大！`
-        : `再想想看吧！<br>小提示:${q.a[0]}與${q.b[0]}都在「千位」，是${q.a[0]}個󠇡千與${q.b[0]}個󠇡千。`;
+        : `再想想看吧！<br>小提示：${q.a[0]}與${q.b[0]}都在「千位」，是${q.a[0]}個󠇡千與${q.b[0]}個󠇡千。`;
     }
     if (type === 1) {
       return ok
         ? `答對了！兩組數字的千位都是${q.a[0]}，目前無法分辨誰比較大。`
-        : `再想想看吧！<br>小提示:兩個󠇡「${q.a[0]}」都代表${q.a[0]}個󠇡千喔！`;
+        : `再想想看吧！<br>小提示：兩個󠇡「${q.a[0]}」都代表${q.a[0]}個󠇡千喔！`;
     }
     if (type === 2) {
       const h1 = q.a[1];
@@ -194,14 +230,16 @@ function feedbackText(ok) {
       }
       return `答對了！從「${q.answer}」開始，就可以看出兩組數字誰比較大。`;
     }
-    return '再想想看吧！<br>小提示:要從最高位數開始，一󠇡位一󠇡位比較。';
+    return '再想想看吧！<br>小提示：要從最高位數開始，一󠇡位一󠇡位比較。';
   }
 }
 
 function showFeedback(ok) {
   playSound(ok ? 'correct' : 'wrong');
 
-  const text = feedbackText(ok);
+const rawText = feedbackText(ok);
+const text = autoLineBreak(rawText);
+
 
   // 先清掉對齊狀態
   modalText.classList.remove('left-align');
@@ -321,6 +359,15 @@ modal.addEventListener('click', function startOnce(){
   modal.style.display='none';
   showIntro();
 });
+
+function autoLineBreak(text) {
+  return text
+    .replace(/，/g, '，<br>')
+    .replace(/。/g, '。<br>')
+    .replace(/：/g, '：<br>');
+}
+
+
 </script>
 </body>
 </html>

@@ -352,7 +352,7 @@ const questions=[
 // 起始說明
 modal.style.display='flex';
 modalText.classList.add('left-align');
-modalText.innerHTML='在接下來的小活動中，會有6個󠇡小題目，每題都會出現兩組數字。<br><br>在畫面的右邊會有題目與選項，請在閱讀題目後，點擊選項的按鈕來選擇答案！<div class="modal-hint">－點擊任意處以開始－</div>';
+modalText.innerHTML='在接下來的小活動中，<br>會有6個󠇡小題目，<br>每題都會出現兩組數字。<br><br>在畫面的右邊會有題目與選項，<br>請在閱讀題目後點擊選項的按鈕來選擇答案！<div class="modal-hint">－點擊任意處以開始－</div>';
 modal.addEventListener('click', function startOnce(){
   playSound('intro');
   modal.removeEventListener('click', startOnce);
@@ -371,4 +371,5 @@ function autoLineBreak(text) {
 </script>
 </body>
 </html>
+
 

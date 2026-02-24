@@ -27,6 +27,20 @@ body {
   flex-wrap: nowrap;
 }
 
+.place-row {
+  display: none;
+  gap: 18px;
+  font-size: clamp(24px, 3vw, 28px);
+  margin-bottom: 0px;
+}
+
+.place {
+  width: clamp(60px, 7vw, 90px);
+  text-align: center;
+  font-weight: bold;
+  color: #444;
+}
+
 .digit {
   width: clamp(60px, 7vw, 90px);
   text-align: center;
@@ -89,10 +103,19 @@ body {
 </head>
 <body>
 <div id="app">
-  <div class="numbers">
-    <div id="numA" class="num-row"></div>
-    <div id="numB" class="num-row"></div>
+<div class="numbers">
+
+  <!-- ⭐ 位值定位板 -->
+  <div class="place-row">
+    <div class="place">千位</div>
+    <div class="place">百位</div>
+    <div class="place">十位</div>
+    <div class="place">個位</div>
   </div>
+
+  <div id="numA" class="num-row"></div>
+  <div id="numB" class="num-row"></div>
+</div>
 
   <div class="right">
     <div id="progress" class="progress"></div>
@@ -149,6 +172,8 @@ function showIntro() {
 }
 
 function showQuestion(q) {
+
+document.querySelector('.place-row').style.display = 'flex';
   progressEl.textContent = `第 ${current + 1} 題 / 共 ${questions.length} 題`;
 
   numA.innerHTML = renderNumber(q.a, q.maskA);
@@ -268,7 +293,7 @@ if (text.startsWith('答對了！')) {
 
   html = `
     <div class="modal-center">${title}</div>
-    ${body ? `<div class="modal-left">${body}</div>` : ''}
+    ${body ? `<div class="modal-center">${body}</div>` : ''}
   `;
 } else {
   // 其他情況（例如：再想想看吧！）維持原本
@@ -371,5 +396,4 @@ function autoLineBreak(text) {
 </script>
 </body>
 </html>
-
 

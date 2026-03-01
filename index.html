@@ -19,35 +19,87 @@ body {
 }
     #app { display: flex; width: 100%; height: 100%; position: relative; }
 
-    .numbers { width: 66.66%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 60px; border-right: 2px solid #ccc; }
-    .num-row {
+/* 左側區塊維持原本寬度，不動 */
+.numbers{
+  width: 66.66%;
   display: flex;
-  gap: 18px;
-  font-size: clamp(64px, 8vw, 96px);
-  flex-wrap: nowrap;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;               /* ⭐ 原本 60 太鬆，表格會飄；這裡縮一點更像定位板 */
+  border-right: 2px solid #ccc;
 }
 
-.place-row {
-  display: none;
-  gap: 18px;
-  font-size: clamp(24px, 3vw, 28px);
-  margin-bottom: 0px;
+/* ===== 定位板（4欄3列）===== */
+.board{
+  display: none;           /* 一開始隱藏，出題才顯示（你 JS 已經有控制） */
+  border: 2px solid #ccc;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
-.place {
-  width: clamp(60px, 7vw, 90px);
+/* 三列都做成 4 欄 grid（穩定，不要 display:contents） */
+.place-row,
+.num-row{
+  display: grid;
+  grid-template-columns: repeat(4, clamp(110px, 11vw, 170px)); /* ⭐ 放大表格：改這裡 */
+  gap: 0;
+}
+
+/* 每個格子共用格線 */
+.place,
+.digit{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-right: 2px solid #ccc;
+  border-bottom: 2px solid #ccc;
+
+  padding: 20px 0;        /* ⭐ 放大格子高度：改這裡 */
   text-align: center;
-  font-weight: bold;
+}
+
+/* 每列最後一格不要右線 */
+.place-row .place:last-child,
+.num-row .digit:last-child{
+  border-right: none;
+}
+
+/* 最下面那一列（numB）不要下線 */
+#numB .digit{
+  border-bottom: none;
+}
+
+/* 字體大小：位值列 */
+.place{
+  font-size: clamp(24px, 2.4vw, 32px); /* ⭐ 稍微放大：改這裡 */
+  font-weight: 700;
   color: #444;
+  background: #e6f4ff;
 }
 
-.digit {
-  width: clamp(60px, 7vw, 90px);
-  text-align: center;
-  border-bottom: 5px solid #000;
+/* 字體大小：數字列 */
+.digit{
+  font-size: clamp(64px, 7vw, 96px);   /* ⭐ 放大數字：改這裡 */
+  position: relative;                  /* 給遮擋貼紙定位用 */
 }
 
-.digit.hidden {
+/* 遮擋：不填滿格子，只貼在中間 */
+.digit.hidden{
+  color: transparent; /* ⭐ 把原本 x 隱藏掉 */
+}
+
+.digit.hidden::after{
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 72%;      /* ⭐ 遮擋面積（不填滿） */
+  height: 72%;
+
   background: repeating-linear-gradient(
     45deg,
     #999,
@@ -55,7 +107,9 @@ body {
     #ccc 6px,
     #ccc 12px
   );
-  color: transparent;  /* ⭐ 隱藏文字，遮擋完全覆蓋 */
+
+  border-radius: 8px;
+  pointer-events: none;
 }
 
 
@@ -105,16 +159,18 @@ body {
 <div id="app">
 <div class="numbers">
 
-  <!-- ⭐ 位值定位板 -->
-  <div class="place-row">
-    <div class="place">千位</div>
-    <div class="place">百位</div>
-    <div class="place">十位</div>
-    <div class="place">個位</div>
-  </div>
+  <!-- ⭐ 4欄3列定位板（外框 + 格線） -->
+  <div class="board">
+    <div class="place-row">
+      <div class="place">千位</div>
+      <div class="place">百位</div>
+      <div class="place">十位</div>
+      <div class="place">個位</div>
+    </div>
 
-  <div id="numA" class="num-row"></div>
-  <div id="numB" class="num-row"></div>
+    <div id="numA" class="num-row"></div>
+    <div id="numB" class="num-row"></div>
+  </div>
 </div>
 
   <div class="right">
@@ -173,7 +229,7 @@ function showIntro() {
 
 function showQuestion(q) {
 
-document.querySelector('.place-row').style.display = 'flex';
+document.querySelector('.board').style.display = 'grid';
   progressEl.textContent = `第 ${current + 1} 題 / 共 ${questions.length} 題`;
 
   numA.innerHTML = renderNumber(q.a, q.maskA);
